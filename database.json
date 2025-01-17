@@ -1,0 +1,41 @@
+{
+    "cards": {
+        "documentId1": {
+            "userId": "user123",
+            "title": "Tarjeta de crédito principal",
+            "transactions": [
+                {
+                    "description": "Compra de café",
+                    "amount": 5.50,
+                    "category": "Comida",
+                    "date": "2023-10-26",
+                    "type": "expense"
+                },
+                {
+                    "description": "Pago de alquiler",
+                    "amount": 1000.00,
+                    "category": "Vivienda",
+                    "date": "2023-10-25",
+                    "type": "expense"
+                }
+            ],
+            "createdAt": "2023-10-26T10:00:00Z",
+            "updatedAt": "2023-10-26T10:00:00Z"
+        },
+        "documentId2": {
+            "userId": "user456",
+            "title": "Tarjeta de débito",
+            "transactions": [
+                {
+                    "description": "Salario",
+                    "amount": 2500.00,
+                    "category": "Ingresos",
+                    "date": "2023-10-26",
+                    "type": "income"
+                }
+            ],
+            "createdAt": "2023-10-26T11:00:00Z",
+            "updatedAt": "2023-10-26T11:00:00Z"
+        }
+    }
+}
