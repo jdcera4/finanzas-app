@@ -3,6 +3,7 @@
 import { useAuth } from './contexts/AuthContext';
 import FinanceCard from './components/FinanceCard';
 import { useRouter } from 'next/navigation';
+import AddCard from './components/AddCard';
 
 export default function Home() {
   const { user, logout } = useAuth();
@@ -63,25 +64,14 @@ export default function Home() {
               <p className="text-gray-600">Administra tus finanzas de manera simple</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div>
-                <FinanceCard />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+              <div style={{width: "100%"}}>
+                <FinanceCard onCardAdded={function (): void {
+                  throw new Error('Function not implemented.');
+                } } />
               </div>
-              <div style={{ width: "50%" }}>
-                <button className="h-[400px] bg-white rounded-lg shadow-lg p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 border-2 border-dashed border-gray-300">
-                  <svg
-                    className="w-12 h-12 text-gray-400"
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path d="M12 4v16m8-8H4"></path>
-                  </svg>
-                  <span className="mt-2 text-gray-500">Agregar Nueva Tarjeta</span>
-                </button>
+              <div style={{ width: "100%" }}>
+                <AddCard />
               </div>
             </div>
 
