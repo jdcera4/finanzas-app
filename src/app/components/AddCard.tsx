@@ -56,14 +56,20 @@ export default function AddFinanceCard() {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
-            [name]: name === 'amount' ? parseFloat(value) || 0 : value
+            [name]: name === 'amount' ? parseFloat(value) || 0 : value,
         }));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Validación básica del formulario
+        if (!formData.title || formData.amount <= 0) {
+            alert('Por favor, completa todos los campos obligatorios correctamente.');
+            return;
+        }
+
         try {
-            // Aquí iría la lógica para guardar en Firebase
             console.log('Nueva tarjeta financiera:', formData);
             setIsOpen(false);
             setFormData({
@@ -78,7 +84,6 @@ export default function AddFinanceCard() {
         }
     };
 
-    // Renderizar campos específicos según la categoría seleccionada
     const renderCategorySpecificFields = () => {
         switch (formData.category) {
             case 'bank-account':
@@ -175,20 +180,37 @@ export default function AddFinanceCard() {
             </button>
 
             {isOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+                    role="dialog"
+                    aria-labelledby="modal-title"
+                    aria-hidden={!isOpen}
+                >
                     <div
                         ref={modalRef}
                         className="bg-white rounded-lg shadow-xl w-full max-w-md"
                     >
                         <div className="p-6">
                             <div className="flex justify-between items-center mb-4">
-                                <h2 className="text-xl font-bold text-gray-900">Agregar Nueva Tarjeta Financiera</h2>
+                                <h2 id="modal-title" className="text-xl font-bold text-gray-900">
+                                    Agregar Nueva Tarjeta Financiera
+                                </h2>
                                 <button
                                     onClick={() => setIsOpen(false)}
                                     className="text-gray-400 hover:text-gray-500"
                                 >
-                                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    <svg
+                                        className="h-6 w-6"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M6 18L18 6M6 6l12 12"
+                                        />
                                     </svg>
                                 </button>
                             </div>
