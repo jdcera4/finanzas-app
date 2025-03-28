@@ -66,9 +66,10 @@ export default function Home() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
               <div style={{width: "100%"}}>
-                <FinanceCard onCardAdded={function (): void {
-                  throw new Error('Function not implemented.');
-                } } />
+                <FinanceCard onCardAdded={async () => {
+                  // Aquí puedes agregar lógica para recargar las tarjetas si es necesario
+                  // Por ejemplo, podrías llamar a una función que obtenga las tarjetas del usuario
+                }} />
               </div>
               <div style={{ width: "100%" }}>
                 <AddCard />

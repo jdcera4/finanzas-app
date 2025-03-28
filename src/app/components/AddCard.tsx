@@ -256,7 +256,7 @@ export default function AddFinanceCard() {
                                     <input
                                         type="number"
                                         name="amount"
-                                        value={formData.amount}
+                                        value={formData.amount || ''}
                                         onChange={handleInputChange}
                                         className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                         required

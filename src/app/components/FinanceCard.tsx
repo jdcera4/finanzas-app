@@ -2,7 +2,8 @@
 import React, { useRef, useState } from 'react';
 import { PlusCircle, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { financeServices } from '@/lib/firebaseService';
+import { db } from '@/lib/firebase'; // Importa Firestore desde tu configuración de Firebase
+import { doc, setDoc, collection, updateDoc, arrayUnion, getDocs } from 'firebase/firestore';
 
 type CardCategory = 'income' | 'expense' | 'bank-account' | 'savings' | 'investment';
 type TransactionType = 'income' | 'expense';
@@ -13,10 +14,11 @@ interface Transaction {
     amount: number;
     date: string;
     category: string;
-    type: TransactionType;  // Aquí especificamos que solo puede ser 'income' o 'expense'
+    type: TransactionType; // Solo puede ser 'income' o 'expense'
 }
 
 interface FinanceCardData {
+    id: string;
     title: string;
     category: CardCategory;
     description: string;
@@ -35,7 +37,9 @@ const FinanceCard: React.FC<Props> = ({ onCardAdded }) => {
     const { user } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
     const modalRef = useRef<HTMLDivElement>(null);
+
     const [formData, setFormData] = useState<FinanceCardData>({
+        id: '',
         title: '',
         category: 'income',
         description: '',
@@ -53,16 +57,31 @@ const FinanceCard: React.FC<Props> = ({ onCardAdded }) => {
                 amount: 0,
                 category: formData.category,
                 date: new Date().toISOString(),
-                type: formData.category === 'expense' ? 'expense' : 'income' as TransactionType
+                type: formData.category === 'expense' ? 'expense' : 'income',
             };
 
+            const newCardId = Date.now().toString(); // Genera un ID único
+            const docRef = doc(collection(db, 'users', user.uid, 'financeCards'), newCardId);
             const newCard = {
+                id: newCardId, // Agrega el ID único al nuevo objeto de tarjeta
                 title: formData.title || 'Nueva Tarjeta',
                 category: formData.category,
                 transactions: [initialTransaction],
             };
 
-            await financeServices.createCard(user.uid, newCard);
+            // Verificar si la colección existe
+            const userCardsCollectionRef = collection(db, 'users', user.uid, 'financeCards');
+            const userCardsSnapshot = await getDocs(userCardsCollectionRef);
+            if (userCardsSnapshot.empty) {
+                // Si la colección no existe, se puede crear
+                await setDoc(doc(userCardsCollectionRef, newCardId), newCard);
+            } else {
+                await setDoc(docRef, newCard);
+            }
+
+            setFormData((prev) => ({ ...prev, id: newCardId })); // Actualiza formData.id
+            console.log('formData.id después de crear la tarjeta:', newCardId); // Verifica el valor
+
             onCardAdded();
             setIsOpen(false);
             resetForm();
@@ -73,6 +92,7 @@ const FinanceCard: React.FC<Props> = ({ onCardAdded }) => {
 
     const resetForm = () => {
         setFormData({
+            id: '',
             title: '',
             category: 'income',
             description: '',
@@ -82,9 +102,12 @@ const FinanceCard: React.FC<Props> = ({ onCardAdded }) => {
         setNewDescription('');
     };
 
-    const addTransaction = (e: React.FormEvent) => {
+    const addTransaction = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newAmount || !newDescription) return;
+        console.log('newAmount:', newAmount, 'newDescription:', newDescription); // Verifica los valores
+
+        // Permitir que el campo de monto esté vacío
+        if (!newDescription) return;
 
         const amount = parseFloat(newAmount);
         if (isNaN(amount)) return;
@@ -95,18 +118,48 @@ const FinanceCard: React.FC<Props> = ({ onCardAdded }) => {
             amount,
             date: new Date().toISOString(),
             category: formData.category,
-            type: amount >= 0 ? 'income' : 'expense'
+            type: amount >= 0 ? 'income' : 'expense',
         };
 
-        setTransactions(prevTransactions => [...prevTransactions, newTransaction]);
-        setNewAmount('');
-        setNewDescription('');
+        try {
+            if (!user) {
+                console.error('El usuario no está autenticado:', user);
+                return;
+            }
+            const cardRef = doc(db, 'users', user.uid, 'financeCards', formData.id); // Usa el ID de la tarjeta
+            await updateDoc(cardRef, {
+                transactions: arrayUnion(newTransaction),
+            });
+
+            setTransactions((prevTransactions) => {
+                const updatedTransactions = [...prevTransactions, newTransaction];
+                console.log('Transacciones actualizadas:', updatedTransactions); // Verifica el estado actualizado
+                return updatedTransactions;
+            });
+            setNewAmount(''); // Reinicia el campo de monto
+            setNewDescription('');
+        } catch (error) {
+            console.error('Error al agregar la transacción:', error);
+        }
     };
 
-    const deleteTransaction = (id: number) => {
-        setTransactions(prevTransactions =>
-            prevTransactions.filter(t => t.id !== id)
-        );
+    const deleteTransaction = async (id: number) => {
+        console.log('formData.id en deleteTransaction:', formData.id); // Verifica el valor de formData.id
+        const updatedTransactions = transactions.filter((t) => t.id !== id);
+        setTransactions(updatedTransactions);
+
+        try {
+            if (!user) {
+                console.error('El usuario no está autenticado.');
+                return;
+            }
+            const cardRef = doc(db, 'users', user.uid, 'financeCards', 'ID_FIJO'); // Reemplaza 'ID_FIJO' con un ID válido
+            await updateDoc(cardRef, {
+                transactions: updatedTransactions,
+            });
+        } catch (error) {
+            console.error('Error al eliminar la transacción:', error);
+        }
     };
 
     const total = transactions.reduce((sum, t) => sum + t.amount, 0);
@@ -178,7 +231,9 @@ const FinanceCard: React.FC<Props> = ({ onCardAdded }) => {
                                 </p>
                             </div>
                             <div className="flex items-center gap-3">
-                                <span className={transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'}>
+                                <span
+                                    className={transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'}
+                                >
                                     ${Math.abs(transaction.amount).toFixed(2)}
                                 </span>
                                 <button
@@ -198,7 +253,9 @@ const FinanceCard: React.FC<Props> = ({ onCardAdded }) => {
             {/* Footer */}
             <div className="p-4 border-t bg-gray-50 flex justify-between items-center">
                 <span className="font-bold">Total:</span>
-                <span className={`font-bold ${total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <span
+                    className={`font-bold ${total >= 0 ? 'text-green-600' : 'text-red-600'}`}
+                >
                     ${Math.abs(total).toFixed(2)}
                 </span>
             </div>
