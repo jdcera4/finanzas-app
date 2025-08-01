@@ -1,7 +1,7 @@
 'use client';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
-import { db, auth } from '../../lib/firebase';
+import { ref, onValue } from 'firebase/database';
+import { realtimeDb, auth } from '../../lib/firebase';
 import type { FinanceCard, User } from '../../types';
 
 interface FinanceContextType {
@@ -44,17 +44,13 @@ export const FinanceProvider = ({ children }: { children: React.ReactNode }) => 
             return;
         }
 
-        const q = query(
-            collection(db, 'cards'),
-            where('userId', '==', user.uid)
-        );
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const newCards = snapshot.docs.map((doc) => ({
-                id: doc.id,
-                ...doc.data(),
-            })) as FinanceCard[];
-
+        const userCardsRef = ref(realtimeDb, `users/${user.uid}/financeCards`);
+        const unsubscribe = onValue(userCardsRef, (snapshot) => {
+            const data = snapshot.val();
+            const newCards = data ? Object.keys(data).map(key => ({
+                id: key,
+                ...data[key],
+            })) : [];
             setCards(newCards);
             setLoading(false);
         });

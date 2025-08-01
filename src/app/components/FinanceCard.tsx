@@ -1,266 +1,264 @@
 'use client';
-import React, { useRef, useState } from 'react';
-import { PlusCircle, Trash2 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { db } from '@/lib/firebase'; // Importa Firestore desde tu configuración de Firebase
-import { doc, setDoc, collection, updateDoc, arrayUnion, getDocs } from 'firebase/firestore';
 
-type CardCategory = 'income' | 'expense' | 'bank-account' | 'savings' | 'investment';
-type TransactionType = 'income' | 'expense';
+import React, { useState, useEffect } from 'react';
+import { realtimeDb } from '@/lib/firebase';
+import { ref, onValue, off } from 'firebase/database';
+import { useAuth } from '../contexts/AuthContext';
+import AddFinanceCard from './AddFinanceCard';
+
+type CardCategory = 'income' | 'expense' | 'bank-account' | 'savings' | 'investment' | 'debt';
+type TransactionType = 'fixed' | 'variable';
 
 interface Transaction {
-    id: number;
+    id: string;
     description: string;
     amount: number;
     date: string;
     category: string;
-    type: TransactionType; // Solo puede ser 'income' o 'expense'
+    type: 'income' | 'expense';
+}
+
+interface Installment {
+    month: string;
+    paid: boolean;
 }
 
 interface FinanceCardData {
     id: string;
     title: string;
     category: CardCategory;
-    description: string;
+    amount: number;
+    description?: string;
+    transactionType?: TransactionType;
+    bankName?: string;
+    accountNumber?: string;
+    frequency?: 'monthly' | 'weekly' | 'yearly';
+    createdAt: string;
+    updatedAt: string;
     transactions: Transaction[];
+    totalDebt?: number;
+    remainingBalance?: number;
+    installments?: Installment[];
+}
+
+interface FinanceCardProps {
+    card: FinanceCardData;
+    onCardUpdated: () => void;
+    onCardDeleted: () => void;
 }
 
 interface Props {
+    cards: FinanceCardData[];
     onCardAdded: () => void;
+    onCardDeleted: () => void;
 }
 
-const FinanceCard: React.FC<Props> = ({ onCardAdded }) => {
-    const [title, setTitle] = useState('Nueva Tarjeta');
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [newAmount, setNewAmount] = useState('');
-    const [newDescription, setNewDescription] = useState('');
-    const { user } = useAuth();
-    const [isOpen, setIsOpen] = useState(false);
-    const modalRef = useRef<HTMLDivElement>(null);
-
-    const [formData, setFormData] = useState<FinanceCardData>({
-        id: '',
-        title: '',
-        category: 'income',
-        description: '',
-        transactions: [],
+const FinanceCard: React.FC<FinanceCardProps> = ({ card, onCardUpdated, onCardDeleted }) => {
+    const [totalAmount, setTotalAmount] = useState(() => {
+        return card.transactions.reduce((sum, transaction) => sum + transaction.amount, 0);
     });
+    const [newTransactionAmount, setNewTransactionAmount] = useState(0);
+    const [newTransactionDescription, setNewTransactionDescription] = useState('');
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!user) return;
-
-        try {
-            const initialTransaction: Transaction = {
-                id: Date.now(),
-                description: formData.description,
-                amount: 0,
-                category: formData.category,
-                date: new Date().toISOString(),
-                type: formData.category === 'expense' ? 'expense' : 'income',
-            };
-
-            const newCardId = Date.now().toString(); // Genera un ID único
-            const docRef = doc(collection(db, 'users', user.uid, 'financeCards'), newCardId);
-            const newCard = {
-                id: newCardId, // Agrega el ID único al nuevo objeto de tarjeta
-                title: formData.title || 'Nueva Tarjeta',
-                category: formData.category,
-                transactions: [initialTransaction],
-            };
-
-            // Verificar si la colección existe
-            const userCardsCollectionRef = collection(db, 'users', user.uid, 'financeCards');
-            const userCardsSnapshot = await getDocs(userCardsCollectionRef);
-            if (userCardsSnapshot.empty) {
-                // Si la colección no existe, se puede crear
-                await setDoc(doc(userCardsCollectionRef, newCardId), newCard);
-            } else {
-                await setDoc(docRef, newCard);
-            }
-
-            setFormData((prev) => ({ ...prev, id: newCardId })); // Actualiza formData.id
-            console.log('formData.id después de crear la tarjeta:', newCardId); // Verifica el valor
-
-            onCardAdded();
-            setIsOpen(false);
-            resetForm();
-        } catch (error) {
-            console.error('Error al crear la tarjeta:', error);
-        }
-    };
-
-    const resetForm = () => {
-        setFormData({
-            id: '',
-            title: '',
-            category: 'income',
-            description: '',
-            transactions: [],
-        });
-        setNewAmount('');
-        setNewDescription('');
-    };
-
-    const addTransaction = async (e: React.FormEvent) => {
-        e.preventDefault();
-        console.log('newAmount:', newAmount, 'newDescription:', newDescription); // Verifica los valores
-
-        // Permitir que el campo de monto esté vacío
-        if (!newDescription) return;
-
-        const amount = parseFloat(newAmount);
-        if (isNaN(amount)) return;
-
+    const handleAddTransaction = () => {
         const newTransaction: Transaction = {
-            id: Date.now(),
-            description: newDescription,
-            amount,
+            id: `trans_${Date.now()}`,
+            description: newTransactionDescription,
+            amount: newTransactionAmount,
             date: new Date().toISOString(),
-            category: formData.category,
-            type: amount >= 0 ? 'income' : 'expense',
+            category: card.category,
+            type: card.category === 'income' ? 'income' : 'expense',
         };
+        card.transactions.push(newTransaction);
+        setTotalAmount(prev => prev + newTransactionAmount);
+        onCardUpdated();
+        setNewTransactionAmount(0);
+        setNewTransactionDescription('');
+    };
 
-        try {
-            if (!user) {
-                console.error('El usuario no está autenticado:', user);
-                return;
+    const handleDeleteTransaction = (transactionId: string) => {
+        const transactionIndex = card.transactions.findIndex(t => t.id === transactionId);
+        if (transactionIndex > -1) {
+            const [removedTransaction] = card.transactions.splice(transactionIndex, 1);
+            setTotalAmount(prev => prev - removedTransaction.amount);
+            onCardUpdated();
+        }
+    };
+
+    const handleToggleInstallment = (index: number) => {
+        if (!card.installments || card.totalDebt === undefined) return;
+        const updatedInstallments = card.installments.map((installment, i) => {
+            if (i === index) {
+                return { ...installment, paid: !installment.paid };
             }
-            const cardRef = doc(db, 'users', user.uid, 'financeCards', formData.id); // Usa el ID de la tarjeta
-            await updateDoc(cardRef, {
-                transactions: arrayUnion(newTransaction),
-            });
-
-            setTransactions((prevTransactions) => {
-                const updatedTransactions = [...prevTransactions, newTransaction];
-                console.log('Transacciones actualizadas:', updatedTransactions); // Verifica el estado actualizado
-                return updatedTransactions;
-            });
-            setNewAmount(''); // Reinicia el campo de monto
-            setNewDescription('');
-        } catch (error) {
-            console.error('Error al agregar la transacción:', error);
-        }
+            return installment;
+        });
+        const totalDebt = card.totalDebt || 0;
+        const updatedBalance = updatedInstallments.reduce((balance, installment) => {
+            return installment.paid ? balance - (totalDebt / updatedInstallments.length) : balance;
+        }, totalDebt);
+        // Update card state with new installments and balance
+        // Assuming setCard is a state update function for the card
+        onCardUpdated();
     };
-
-    const deleteTransaction = async (id: number) => {
-        console.log('formData.id en deleteTransaction:', formData.id); // Verifica el valor de formData.id
-        const updatedTransactions = transactions.filter((t) => t.id !== id);
-        setTransactions(updatedTransactions);
-
-        try {
-            if (!user) {
-                console.error('El usuario no está autenticado.');
-                return;
-            }
-            const cardRef = doc(db, 'users', user.uid, 'financeCards', 'ID_FIJO'); // Reemplaza 'ID_FIJO' con un ID válido
-            await updateDoc(cardRef, {
-                transactions: updatedTransactions,
-            });
-        } catch (error) {
-            console.error('Error al eliminar la transacción:', error);
-        }
-    };
-
-    const total = transactions.reduce((sum, t) => sum + t.amount, 0);
-
-    const handleClickOutside = (e: MouseEvent) => {
-        if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
-            setIsOpen(false);
-        }
-    };
-
-    React.useEffect(() => {
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
 
     return (
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden w-full">
-            {/* Header */}
-            <div className="p-4 border-b">
+        <div className="p-4 bg-white shadow-md rounded-md">
+            <div className="mb-4 flex flex-col">
                 <input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="text-xl font-bold w-full border-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 py-1"
+                    type="number"
+                    value={newTransactionAmount}
+                    onChange={(e) => setNewTransactionAmount(Number(e.target.value))}
+                    placeholder="Amount"
+                    className="border p-2 mb-2 rounded-md shadow-sm"
                 />
+                <input
+                    type="text"
+                    value={newTransactionDescription}
+                    onChange={(e) => setNewTransactionDescription(e.target.value)}
+                    placeholder="Description"
+                    className="border p-2 mb-2 rounded-md shadow-sm"
+                />
+                <button onClick={handleAddTransaction} className="bg-blue-600 text-white px-4 py-2 rounded-md shadow-md hover:bg-blue-700">Add Transaction</button>
             </div>
-
-            {/* Content */}
-            <div className="p-4">
-                <form onSubmit={addTransaction} className="mb-4">
-                    <div className="flex gap-2">
-                        <input
-                            type="number"
-                            value={newAmount}
-                            onChange={(e) => setNewAmount(e.target.value)}
-                            placeholder="Monto"
-                            className="flex-1 border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            step="0.01"
-                            required
-                        />
-                        <input
-                            value={newDescription}
-                            onChange={(e) => setNewDescription(e.target.value)}
-                            placeholder="Descripción"
-                            className="flex-2 border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            required
-                        />
-                        <button
-                            type="submit"
-                            className="bg-blue-500 text-white rounded px-4 py-2 hover:bg-blue-600 transition-colors"
-                            disabled={!newAmount || !newDescription}
-                        >
-                            <PlusCircle className="w-5 h-5" />
-                        </button>
-                    </div>
-                </form>
-
-                <div className="space-y-2">
-                    {transactions.map((transaction) => (
-                        <div
-                            key={transaction.id}
-                            className="flex items-center justify-between p-3 border rounded hover:bg-gray-50"
-                        >
-                            <div>
-                                <p className="font-medium">{transaction.description}</p>
-                                <p className="text-sm text-gray-500">
-                                    {new Date(transaction.date).toLocaleDateString()}
-                                </p>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <span
-                                    className={transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'}
-                                >
-                                    ${Math.abs(transaction.amount).toFixed(2)}
-                                </span>
-                                <button
-                                    type="button"
-                                    onClick={() => deleteTransaction(transaction.id)}
-                                    className="text-gray-400 hover:text-red-500 transition-colors"
-                                    aria-label="Eliminar transacción"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
-                            </div>
-                        </div>
-                    ))}
+            <h3 className="text-xl font-bold text-gray-800 mb-2">{card.title}</h3>
+            <p className="text-gray-600">Category: {card.category}</p>
+            <p className="text-gray-600">Amount: ${card.amount}</p>
+            <p className="text-gray-600">Description: {card.description}</p>
+            <p className="text-gray-900 font-bold">Total: ${totalAmount.toFixed(2)}</p>
+            {card.category === 'debt' && (
+                <div className="mt-4">
+                    <h4 className="text-lg font-semibold">Installments</h4>
+                    <ul className="list-disc pl-5">
+                        {card.installments && card.installments.map((installment, index) => (
+                            <li key={index} className="flex items-center">
+                                <input
+                                    type="checkbox"
+                                    checked={installment.paid}
+                                    onChange={() => handleToggleInstallment(index)}
+                                    className="mr-2"
+                                />
+                                {installment.month}: {installment.paid ? 'Paid' : 'Unpaid'}
+                            </li>
+                        ))}
+                    </ul>
+                    <p className="mt-2 text-gray-800 font-bold">Remaining Balance: ${card.remainingBalance?.toFixed(2)}</p>
                 </div>
-            </div>
-
-            {/* Footer */}
-            <div className="p-4 border-t bg-gray-50 flex justify-between items-center">
-                <span className="font-bold">Total:</span>
-                <span
-                    className={`font-bold ${total >= 0 ? 'text-green-600' : 'text-red-600'}`}
-                >
-                    ${Math.abs(total).toFixed(2)}
-                </span>
-            </div>
+            )}
+            <ul className="mt-4">
+                {card.transactions.map(transaction => (
+                    <li key={transaction.id} className="flex justify-between items-center py-1">
+                        <span>{transaction.description}: ${transaction.amount.toFixed(2)}</span>
+                        <button onClick={() => handleDeleteTransaction(transaction.id)} className="text-red-600 hover:text-red-800">Delete</button>
+                    </li>
+                ))}
+            </ul>
+            <button onClick={onCardDeleted} className="mt-4 bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition-colors">
+                Delete Card
+            </button>
         </div>
     );
 };
 
-export default FinanceCard;
+export default function FinanceCardList() {
+    const { user } = useAuth();
+    const [cards, setCards] = useState<FinanceCardData[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!user) {
+            setLoading(false);
+            setCards([]);
+            return;
+        }
+
+        const cardsRef = ref(realtimeDb, `users/${user.uid}/financeCards`);
+
+        const unsubscribe = onValue(cardsRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                const cardsArray: FinanceCardData[] = Object.entries(data).map(([id, cardData]: [string, any]) => ({
+                    id,
+                    ...cardData,
+                    transactions: cardData.transactions || []
+                }));
+
+                // Ordenar por fecha de creación (más recientes primero)
+                cardsArray.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                setCards(cardsArray);
+            } else {
+                setCards([]);
+            }
+            setLoading(false);
+        }, (error) => {
+            console.error('Error al obtener las tarjetas:', error);
+            setLoading(false);
+        });
+
+        return () => off(cardsRef, 'value', unsubscribe);
+    }, [user]);
+
+    const handleCardAdded = () => {
+        // Los datos se actualizan automáticamente a través del listener
+        console.log('Nueva tarjeta agregada');
+    };
+
+    const handleCardUpdated = () => {
+        // Los datos se actualizan automáticamente a través del listener
+        console.log('Tarjeta actualizada');
+    };
+
+    const handleCardDeleted = () => {
+        // Los datos se actualizan automáticamente a través del listener
+        console.log('Tarjeta eliminada');
+    };
+
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center min-h-64">
+                <div className="text-gray-500">Cargando tarjetas...</div>
+            </div>
+        );
+    }
+
+    if (!user) {
+        return (
+            <div className="text-center text-gray-500 py-12">
+                <p>Debes iniciar sesión para ver tus tarjetas financieras.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <h1 className="text-2xl font-bold text-gray-900">Mis Tarjetas Financieras</h1>
+                <div className="text-sm text-gray-500">
+                    {cards.length} {cards.length === 1 ? 'tarjeta' : 'tarjetas'}
+                </div>
+            </div>
+            <AddFinanceCard onCardAdded={handleCardAdded} onCardDeleted={handleCardDeleted} cards={cards} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {cards.map((card) => (
+                    <FinanceCard
+                        key={card.id}
+                        card={card}
+                        onCardUpdated={handleCardUpdated}
+                        onCardDeleted={handleCardDeleted}
+                    />
+                ))}
+            </div>
+
+            {cards.length === 0 && (
+                <div className="text-center py-12">
+                    <div className="text-gray-500 mb-4">
+                        No tienes tarjetas financieras aún
+                    </div>
+                    <p className="text-sm text-gray-400">
+                        Haz clic en "Agregar Nueva Tarjeta Financiera" para comenzar
+                    </p>
+                </div>
+            )}
+        </div>
+    );
+}

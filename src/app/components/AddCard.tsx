@@ -98,7 +98,7 @@ export default function AddFinanceCard() {
                                 name="bankName"
                                 value={formData.bankName || ''}
                                 onChange={handleInputChange}
-                                className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 required
                             />
                         </div>
@@ -111,7 +111,7 @@ export default function AddFinanceCard() {
                                 name="accountNumber"
                                 value={formData.accountNumber || ''}
                                 onChange={handleInputChange}
-                                className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 required
                             />
                         </div>
@@ -129,7 +129,7 @@ export default function AddFinanceCard() {
                                 name="transactionType"
                                 value={formData.transactionType}
                                 onChange={handleInputChange}
-                                className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 required
                             >
                                 <option value="fixed">Fijo</option>
@@ -144,7 +144,7 @@ export default function AddFinanceCard() {
                                 name="frequency"
                                 value={formData.frequency}
                                 onChange={handleInputChange}
-                                className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 required
                             >
                                 <option value="monthly">Mensual</option>
@@ -160,7 +160,7 @@ export default function AddFinanceCard() {
     };
 
     return (
-        <>
+        <div className="p-4 bg-white shadow-lg rounded-lg">
             <button
                 onClick={() => setIsOpen(true)}
                 className="w-full h-[400px] bg-white rounded-lg shadow-lg p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 border-2 border-dashed border-gray-300 transition-colors"
@@ -192,9 +192,7 @@ export default function AddFinanceCard() {
                     >
                         <div className="p-6">
                             <div className="flex justify-between items-center mb-4">
-                                <h2 id="modal-title" className="text-xl font-bold text-gray-900">
-                                    Agregar Nueva Tarjeta Financiera
-                                </h2>
+                                <h2 id="modal-title" className="text-2xl font-semibold mb-4">Agregar Nueva Tarjeta Financiera</h2>
                                 <button
                                     onClick={() => setIsOpen(false)}
                                     className="text-gray-400 hover:text-gray-500"
@@ -225,7 +223,7 @@ export default function AddFinanceCard() {
                                         name="title"
                                         value={formData.title}
                                         onChange={handleInputChange}
-                                        className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                         required
                                     />
                                 </div>
@@ -238,7 +236,7 @@ export default function AddFinanceCard() {
                                         name="category"
                                         value={formData.category}
                                         onChange={handleInputChange}
-                                        className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                         required
                                     >
                                         <option value="income">Ingreso</option>
@@ -258,7 +256,7 @@ export default function AddFinanceCard() {
                                         name="amount"
                                         value={formData.amount || ''}
                                         onChange={handleInputChange}
-                                        className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                         required
                                         step="0.01"
                                     />
@@ -272,7 +270,7 @@ export default function AddFinanceCard() {
                                         name="description"
                                         value={formData.description}
                                         onChange={handleInputChange}
-                                        className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                         rows={3}
                                         required
                                     />
@@ -300,6 +298,6 @@ export default function AddFinanceCard() {
                     </div>
                 </div>
             )}
-        </>
+        </div>
     );
 }

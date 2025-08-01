@@ -8,6 +8,7 @@ export interface Transaction {
 }
 
 export interface FinanceCard {
+    description: ReactNode;
     id: string;
     title: string;
     transactions: Transaction[];
