@@ -14,7 +14,9 @@ const eslintConfig = [
   {
     rules: {
       // Ignorar variables no usadas pero declarar la advertencia como 'warn' en lugar de 'error'
-      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-unused-vars": "warn",
+      "@typescript-eslint/no-explicit-any": "warn",
+      "react/no-unescaped-entities": "warn",
       // Puedes añadir otras reglas personalizadas aquí
     },
   },

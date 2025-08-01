@@ -1,3 +1,5 @@
+import { ReactNode } from 'react';
+
 export interface Transaction {
     id: string;
     description: string;
